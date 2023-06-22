@@ -12,7 +12,9 @@ bot = AsyncTeleBot(os.getenv('TOKEN'))
 question_category = ['full_name','old','education', 'name_organization', 'year_ending', 'speciality',
                      'study_now', 'location', 'renting_house', 'phone_number', 'family_status', 'children',
                      'military_service', 'experience', 'shift_work', 'business_trips', 'housing_problem',
-                     'skill_PK', 'knowledge_programms', 'language_level', 'contraindications', 'found_us', 'personal_qualities']
+                     'skill_PK', 'knowledge_programms', 'language_level', 'contraindications', 'found_us', 'personal_qualities', 'work_experience']
+
+work_experience_keys_list = ['period_employment', 'name_organization', 'position_held', 'reason_leaving']
 
 
 questions_list = [['Укажите ваше ФИО', None],
@@ -48,8 +50,7 @@ questions_list = [['Укажите ваше ФИО', None],
                                                                   'Не знаю': 'zero_level'}],
                   ['Личные противопоказания по состоянию здоровья?', None],
                   ['Как Вы о нас узнали?', None],
-                  ['Личные качества?', None]
-                  ]
+                  ['Личные качества?', None]]
 
 
 def first_power():
@@ -77,7 +78,12 @@ def new_user_reg(message):
         print("Пользователь не зарегистрирован")
         session[chat_id] = {
             'name': message.from_user.first_name,
-            'index_question': 0
+            'index_question': 0,
+            'index_q_work': 0,
+            'value_q_work': 0,
+            'answers': {
+                'work_experience': [{}]
+            }
         }
         with open('session.json', 'w') as file:
             json.dump(session, file, ensure_ascii=False)
@@ -94,7 +100,7 @@ def save_session(session):
         json.dump(session, file, ensure_ascii=False)
 
 
-async def response_handler(chat_id ):
+async def response_handler(chat_id):
     global bot_message
     session = get_session()
     index_question = session[str(chat_id)]['index_question']
@@ -124,6 +130,29 @@ def create_keyboard_markup(button_dict):
 
     return keyboard
 
+
+async def question_period_work(message):
+    chat_id = message.from_user.id
+    button_dict = {
+        'следующий вопрос': 'next_question',
+        'добавить': 'add_work',
+    }
+    global bot_message
+    await bot.delete_message(chat_id, bot_message.id)
+    bot_message = await bot.send_message(chat_id, 'Сведения о работе за последние 10 лет', reply_markup=create_keyboard_markup(button_dict))
+
+async def four_question_work(call):
+    chat_id = call.from_user.id
+    work_list = ['Период работы\nПример ввода: 06.21 - 05.23', 'Название организации', 'Занимаемая должность', 'Причина увольнения']
+    global bot_message
+    session = get_session()
+    markup = types.ForceReply(selective=False)
+    await bot.delete_message(chat_id, bot_message.id)
+    print(session[str(chat_id)]['index_q_work'])
+    bot_message = await bot.send_message(chat_id, work_list[session[str(chat_id)]['index_q_work']], reply_markup=markup)
+
+
+
 @bot.message_handler(commands=['main'])
 async def send_main(message):
     chat_id = message.from_user.id
@@ -136,7 +165,7 @@ async def send_main(message):
     await bot.delete_message(chat_id, message.id)
     bot_message = await bot.send_message(chat_id,'Начнем заново? 😊', reply_markup=create_keyboard_markup(button_dict))
 
-@bot.message_handler(commands=['help', 'start'])
+@bot.message_handler(commands=['start'])
 async def send_welcome(message):
     chat_id = message.from_user.id
     print(str(chat_id) + " " + str(message.from_user.first_name))
@@ -150,10 +179,11 @@ async def send_welcome(message):
         bot_message = await bot.send_message(chat_id, 'С возвращением, ' + str(message.from_user.first_name) + '!', reply_markup=keyboard)
     else:
         bot_message = await bot.send_message(chat_id, 'Привет, рад познокомится, ' + str(message.from_user.first_name) + '!', reply_markup=keyboard)
+    await bot.delete_message(chat_id, message.id)
 
 async def handle_callback_response(chat_id, call, button_call):
     session = get_session()
-    session[str(chat_id)][question_category[session[str(chat_id)]['index_question']]] = get_button_text(call, button_call)
+    session[str(chat_id)]['answers'][question_category[session[str(chat_id)]['index_question']]] = get_button_text(call, button_call)
     session[str(chat_id)]['index_question'] += 1
     save_session(session)
     await handle_callback(start_resume)
@@ -161,7 +191,6 @@ async def handle_callback_response(chat_id, call, button_call):
 
 @bot.callback_query_handler(func=lambda call: True)
 async def handle_callback(call):
-    print(call.json['message']['reply_markup']['inline_keyboard'])
     global bot_message
     chat_id = call.message.chat.id
     button_call = call.data
@@ -175,9 +204,18 @@ async def handle_callback(call):
         }
         await bot.edit_message_text("Вы можите заполнить резюме, и вам перезвонит сотрудник отдела кадров.", chat_id, bot_message.id, reply_markup=create_keyboard_markup(button_dict))
     elif button_call =='start_resume':
-        global start_resume
-        start_resume = call
-        await response_handler(chat_id)
+        if session[str(chat_id)]['index_question'] == len(questions_list):
+            await question_period_work(call)
+        else:
+            global start_resume
+            start_resume = call
+            await response_handler(chat_id)
+    elif button_call == 'next_question':
+        pass
+    elif button_call == 'add_work':
+        global add_work_call
+        add_work_call = call
+        await four_question_work(call)
     elif button_call == 'main':
         button_dict = {
             'О нас': 'about_as',
@@ -191,13 +229,33 @@ async def handle_callback(call):
 async def handle_reply_response(chat_id, message):
     session = get_session()
     try:
-        session[str(chat_id)][question_category[session[str(chat_id)]['index_question']]] = int(message.text)
+        session[str(chat_id)]['answers'][question_category[session[str(chat_id)]['index_question']]] = int(message.text)
     except:
-        session[str(chat_id)][question_category[session[str(chat_id)]['index_question']]] = message.text
+        session[str(chat_id)]['answers'][question_category[session[str(chat_id)]['index_question']]] = message.text
     session[str(chat_id)]['index_question'] += 1
     save_session(session)
-    await handle_callback(start_resume)
     await bot.delete_message(chat_id, message.id)
+    await handle_callback(start_resume)
+
+async def handle_reply_response_four(chat_id, message):
+    session = get_session()
+    value_q_work = session[str(chat_id)]['value_q_work']
+
+    session[str(chat_id)]['answers']['work_experience'][value_q_work][work_experience_keys_list[session[str(chat_id)]['index_q_work']]] = message.text
+
+    session[str(chat_id)]['index_q_work'] += 1
+    save_session(session)
+    await bot.delete_message(chat_id, message.id)
+    if session[str(chat_id)]['index_q_work'] == len(work_experience_keys_list):
+        session[str(chat_id)]['answers']['work_experience'].append({})
+        session[str(chat_id)]['value_q_work'] += 1
+        session[str(chat_id)]['index_q_work'] = 0
+        save_session(session)
+        await handle_callback(start_resume)
+    else:
+        await four_question_work(add_work_call)
+
+
 
 
 @bot.message_handler(func=lambda message: True)
@@ -205,7 +263,17 @@ async def handle_reply(message):
     chat_id = message.chat.id
     session = get_session()
     if message.reply_to_message is not None:
-        await handle_reply_response(chat_id, message)
+        if session[str(chat_id)]['index_question'] == len(questions_list):
+            # if session[str(chat_id)]['index_q_work'] == len(work_experience_keys_list):
+            #     session[str(chat_id)]['answers']['work_experience'].append({})
+            #     session[str(chat_id)]['value_q_work'] +=1
+            #     session[str(chat_id)]['index_q_work'] = 0
+            #     save_session(session)
+            #     await handle_callback(start_resume)
+            # else:
+            await handle_reply_response_four(chat_id, message)
+        else:
+            await handle_reply_response(chat_id, message)
 
 
 
