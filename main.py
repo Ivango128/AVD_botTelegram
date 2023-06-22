@@ -3,10 +3,12 @@ from telebot.async_telebot import AsyncTeleBot
 import asyncio
 import os
 import json
+from dotenv import load_dotenv, find_dotenv
 
+load_dotenv(find_dotenv())
 
-bot = AsyncTeleBot('6286035570:AAGUyK_aRQaZdERTc3ZDYB5fqY-mcH6UWQM')
-bd_file_name = 'bd_candidate.json'
+bot = AsyncTeleBot(os.getenv('TOKEN'))
+
 
 questions_list = [['Укажите ваше ФИО', None],
                   ['Возвраст (число полных лет)', None],
@@ -16,7 +18,10 @@ questions_list = [['Укажите ваше ФИО', None],
                                                         'начальное профессиональное': 'start_prof',
                                                         'среднее': 'middle',
                                                         'не оконченое среднее': 'not_middle'}],
-                  ['Название учебного заведения', None]]
+                  ['Название учебного заведения', None],
+                  ['Год окночания?', None],
+                  ['Специальность по диплому']
+                  ]
 
 
 def first_power():
@@ -28,19 +33,11 @@ def first_power():
             # Записываем данные в JSON-файл
             json.dump(session, file)
 
-    if os.path.isfile(bd_file_name):
-        print("Файл существует")
-    else:
-        bd_candidate = {}
-        with open(bd_file_name, 'w') as file:
-            # Записываем данные в JSON-файл
-            json.dump(bd_candidate, file)
-
 
 
 def new_user_reg(message):
     chat_id = message.from_user.id
-    print(type(chat_id))
+    print(type(chat_id)) # Проверка типа
     new_user_bool = False
     with open('session.json', 'r') as file:
         # Загружаем данные из JSON-файла
@@ -68,19 +65,27 @@ def save_session(session):
         # Записываем данные в JSON-файл
         json.dump(session, file, ensure_ascii=False)
 
-async def response_handler(chat_id, session):
+
+async def response_handler(chat_id ):
     global bot_message
+    session = get_session()
     index_question = session[str(chat_id)]['index_question']
     if questions_list[index_question][1] == None:
         markup = types.ForceReply(selective=False)
         await bot.delete_message(chat_id, bot_message.id)
         bot_message = await bot.send_message(chat_id, questions_list[index_question][0], reply_markup=markup)
-
     else:
         await bot.delete_message(chat_id, bot_message.id)
         bot_message = await bot.send_message(chat_id, questions_list[index_question][0], reply_markup=create_keyboard_markup(questions_list[index_question][1]))
 
 
+def get_button_text(call, callback_data):
+    button_list = call.json['message']['reply_markup']['inline_keyboard']
+    for row in button_list:
+        for button in row:
+            if button['callback_data'] == callback_data:
+                return button['text']
+    return None
 
 
 def create_keyboard_markup(button_dict):
@@ -106,9 +111,18 @@ async def send_welcome(message):
     else:
         bot_message = await bot.send_message(chat_id, 'Привет, рад познокомится, ' + str(message.from_user.first_name) + '!', reply_markup=keyboard)
 
+async def handle_callback_response(chat_id, call, button_call, number_question, theme_question):
+    session = get_session()
+    if session[str(chat_id)]['index_question'] == number_question:
+        session[str(chat_id)][theme_question] = get_button_text(call, button_call)
+        session[str(chat_id)]['index_question'] += 1
+        save_session(session)
+        await handle_callback(start_resume)
+
 
 @bot.callback_query_handler(func=lambda call: True)
 async def handle_callback(call):
+    print(call.json['message']['reply_markup']['inline_keyboard'])
     global bot_message
     chat_id = call.message.chat.id
     button_call = call.data
@@ -124,9 +138,20 @@ async def handle_callback(call):
     elif button_call =='start_resume':
         global start_resume
         start_resume = call
-        await response_handler(chat_id, session)
+        await response_handler(chat_id)
     elif button_call =='high':
-        pass
+        await handle_callback_response(chat_id, call, button_call, 2, 'education')
+    elif button_call == 'not_hight':
+        await handle_callback_response(chat_id, call, button_call, 2, 'education')
+    elif button_call =='middle_prof':
+        await handle_callback_response(chat_id, call, button_call, 2, 'education')
+    elif button_call =='start_prof':
+        await handle_callback_response(chat_id, call, button_call, 2, 'education')
+    elif button_call =='middle':
+        await handle_callback_response(chat_id, call, button_call, 2, 'education')
+    elif button_call =='not_middle':
+        await handle_callback_response(chat_id, call, button_call, 2, 'education')
+
     elif button_call == 'main':
         button_dict = {
             'О нас': 'about_as',
@@ -134,12 +159,30 @@ async def handle_callback(call):
         }
         await bot.edit_message_text('Начнем заново? 😊', chat_id, bot_message.id, reply_markup=create_keyboard_markup(button_dict))
 
+    #save_session(session)
+
 
 @bot.message_handler(func=lambda message: True)
 async def handle_reply(message):
     chat_id = message.chat.id
+    session = get_session()
     if message.reply_to_message is not None:
-        session = get_session()
+        if session[str(chat_id)]['index_question'] == 0:
+            session[str(chat_id)]['full_name'] = message.text
+        elif session[str(chat_id)]['index_question'] == 1:
+            try:
+                session[str(chat_id)]['old'] = int(message.text)
+            except:
+                session[str(chat_id)]['old'] = message.text
+        elif session[str(chat_id)]['index_question'] == 2:
+            pass
+        elif session[str(chat_id)]['index_question'] == 3:
+            session[str(chat_id)]['name_organization'] = message.text
+        elif session[str(chat_id)]['index_question'] == 4:
+            try:
+                session[str(chat_id)]['year_ending'] = int(message.text)
+            except:
+                session[str(chat_id)]['year_ending'] = message.text
         session[str(chat_id)]['index_question'] += 1
         save_session(session)
         await handle_callback(start_resume)
