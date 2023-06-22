@@ -14,6 +14,7 @@ question_category = ['full_name','old','education', 'name_organization', 'year_e
                      'military_service', 'experience', 'shift_work', 'business_trips', 'housing_problem',
                      'skill_PK', 'knowledge_programms', 'language_level', 'contraindications', 'found_us', 'personal_qualities']
 
+
 questions_list = [['Укажите ваше ФИО', None],
                   ['Возраст (число полных лет)', None],
                   ['Выберите ваш уровень образования', {'высшие': 'high',
@@ -123,6 +124,18 @@ def create_keyboard_markup(button_dict):
 
     return keyboard
 
+@bot.message_handler(commands=['main'])
+async def send_main(message):
+    chat_id = message.from_user.id
+    button_dict = {
+        'О нас': 'about_as',
+        'Продолжить заполнять резюме': 'record_in_PD',
+    }
+    global bot_message
+    await bot.delete_message(chat_id, bot_message.id)
+    await bot.delete_message(chat_id, message.id)
+    bot_message = await bot.send_message(chat_id,'Начнем заново? 😊', reply_markup=create_keyboard_markup(button_dict))
+
 @bot.message_handler(commands=['help', 'start'])
 async def send_welcome(message):
     chat_id = message.from_user.id
@@ -165,18 +178,6 @@ async def handle_callback(call):
         global start_resume
         start_resume = call
         await response_handler(chat_id)
-    # elif button_call =='high':
-    #     await handle_callback_response(chat_id, call, button_call)
-    # elif button_call == 'not_hight':
-    #     await handle_callback_response(chat_id, call, button_call)
-    # elif button_call =='middle_prof':
-    #     await handle_callback_response(chat_id, call, button_call)
-    # elif button_call =='start_prof':
-    #     await handle_callback_response(chat_id, call, button_call)
-    # elif button_call =='middle':
-    #     await handle_callback_response(chat_id, call, button_call)
-    # elif button_call =='not_middle':
-    #     await handle_callback_response(chat_id, call, button_call)
     elif button_call == 'main':
         button_dict = {
             'О нас': 'about_as',
