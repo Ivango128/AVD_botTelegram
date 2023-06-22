@@ -9,29 +9,33 @@ load_dotenv(find_dotenv())
 
 bot = AsyncTeleBot(os.getenv('TOKEN'))
 
+question_category = ['full_name','old','education', 'name_organization', 'year_ending', 'speciality',
+                     'study_now', 'location', 'renting_house', 'phone_number', 'family_status', 'children',
+                     'military_service', 'experience', 'shift_work', 'business_trips', 'housing_problem',
+                     'skill_PK', 'knowledge_programms', 'language_level', 'contraindications', 'found_us', 'personal_qualities']
 
 questions_list = [['Укажите ваше ФИО', None],
-                  ['Возвраст (число полных лет)', None],
-                  ['Выберите ваш уровень оброзования', {'высшие': 'high',
-                                                        'не оконченое высшие': 'not_hight',
+                  ['Возраст (число полных лет)', None],
+                  ['Выберите ваш уровень образования', {'высшие': 'high',
+                                                        'неоконченное высшее': 'not_hight',
                                                         'среднее профессиональное': 'middle_prof',
                                                         'начальное профессиональное': 'start_prof',
                                                         'среднее': 'middle',
-                                                        'не оконченое среднее': 'not_middle'}],
+                                                        'неоконченное среднее': 'not_middle'}],
                   ['Название учебного заведения', None],
-                  ['Год окночания?', None],
+                  ['Год окончания?', None],
                   ['Специальность по диплому', None],
                   ['Учеба в настоящее время', None],
                   ['В каком районе Вы живете?', None],
                   ['Снимаете ли вы жилье?', {'да': 'home', 'нет': 'not_home'}],
                   ['Контактный телефон', None],
-                  ['Семейное положение', {'свободен': 'free_family','есть парень/деаушка': 'boy_family', 'женат/замужем': 'married'}],
-                  ['Дети до 18 лет, (указать возвраст, инвалидность)\nПример: 16-нет, 12-есть', None],
+                  ['Семейное положение', {'свободен': 'free_family','есть парень/девушка': 'boy_family', 'женат/замужем': 'married'}],
+                  ['Дети до 18 лет, (указать возраст, инвалидность)\nПример: 16-нет, 12-есть', None],
                   ['Служба в органах ВС', {'да': 'served', 'нет': 'not_served'}],
                   ['Опыт работы по претендуемой профессии? (кол-во лет)', None],
-                  ['Имеет ли Вы возможность работать по сменам?', {'да': 'change', 'нет': 'not_change'}],
-                  ['Имеет ли Вы возможность ездить в командеровки?', {'да': 'mission', 'нет': 'not_mission'}],
-                  ['Решена ли у Вас жилищьная проблема?', {'да': 'problem', 'нет': 'not_problem'}],
+                  ['Имеете ли Вы возможность работать по сменам?', {'да': 'change', 'нет': 'not_change'}],
+                  ['Имеете ли Вы возможность ездить в командировки?', {'да': 'mission', 'нет': 'not_mission'}],
+                  ['Решена ли у Вас жилищная проблема?', {'да': 'problem', 'нет': 'not_problem'}],
                   ['Умеете ли Вы работать на ПК?', {'да': 'pk', 'нет': 'not_pk'}],
                   ['Какие программы вы знаете?', None],
                   ['Выберите уровень знания иностранного языка', {'(А1) – начальный': 'first_level',
@@ -41,7 +45,7 @@ questions_list = [['Укажите ваше ФИО', None],
                                                                   '(C1) – продвинутый': 'fifth_level',
                                                                   '(C2) – профессиональный уровень владения': 'sixth_level',
                                                                   'Не знаю': 'zero_level'}],
-                  ['Наличие противопоказаний по состоянию здоровья?', None],
+                  ['Личные противопоказания по состоянию здоровья?', None],
                   ['Как Вы о нас узнали?', None],
                   ['Личные качества?', None]
                   ]
@@ -134,13 +138,12 @@ async def send_welcome(message):
     else:
         bot_message = await bot.send_message(chat_id, 'Привет, рад познокомится, ' + str(message.from_user.first_name) + '!', reply_markup=keyboard)
 
-async def handle_callback_response(chat_id, call, button_call, number_question, theme_question):
+async def handle_callback_response(chat_id, call, button_call):
     session = get_session()
-    if session[str(chat_id)]['index_question'] == number_question:
-        session[str(chat_id)][theme_question] = get_button_text(call, button_call)
-        session[str(chat_id)]['index_question'] += 1
-        save_session(session)
-        await handle_callback(start_resume)
+    session[str(chat_id)][question_category[session[str(chat_id)]['index_question']]] = get_button_text(call, button_call)
+    session[str(chat_id)]['index_question'] += 1
+    save_session(session)
+    await handle_callback(start_resume)
 
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -162,27 +165,38 @@ async def handle_callback(call):
         global start_resume
         start_resume = call
         await response_handler(chat_id)
-    elif button_call =='high':
-        await handle_callback_response(chat_id, call, button_call, 2, 'education')
-    elif button_call == 'not_hight':
-        await handle_callback_response(chat_id, call, button_call, 2, 'education')
-    elif button_call =='middle_prof':
-        await handle_callback_response(chat_id, call, button_call, 2, 'education')
-    elif button_call =='start_prof':
-        await handle_callback_response(chat_id, call, button_call, 2, 'education')
-    elif button_call =='middle':
-        await handle_callback_response(chat_id, call, button_call, 2, 'education')
-    elif button_call =='not_middle':
-        await handle_callback_response(chat_id, call, button_call, 2, 'education')
-
+    # elif button_call =='high':
+    #     await handle_callback_response(chat_id, call, button_call)
+    # elif button_call == 'not_hight':
+    #     await handle_callback_response(chat_id, call, button_call)
+    # elif button_call =='middle_prof':
+    #     await handle_callback_response(chat_id, call, button_call)
+    # elif button_call =='start_prof':
+    #     await handle_callback_response(chat_id, call, button_call)
+    # elif button_call =='middle':
+    #     await handle_callback_response(chat_id, call, button_call)
+    # elif button_call =='not_middle':
+    #     await handle_callback_response(chat_id, call, button_call)
     elif button_call == 'main':
         button_dict = {
             'О нас': 'about_as',
-            'Запись в отдел кадров': 'record_in_PD',
+            'Продолжить заполнять резюме': 'record_in_PD',
         }
         await bot.edit_message_text('Начнем заново? 😊', chat_id, bot_message.id, reply_markup=create_keyboard_markup(button_dict))
+    else:
+        await handle_callback_response(chat_id, call, button_call)
 
-    #save_session(session)
+
+async def handle_reply_response(chat_id, message):
+    session = get_session()
+    try:
+        session[str(chat_id)][question_category[session[str(chat_id)]['index_question']]] = int(message.text)
+    except:
+        session[str(chat_id)][question_category[session[str(chat_id)]['index_question']]] = message.text
+    session[str(chat_id)]['index_question'] += 1
+    save_session(session)
+    await handle_callback(start_resume)
+    await bot.delete_message(chat_id, message.id)
 
 
 @bot.message_handler(func=lambda message: True)
@@ -190,33 +204,7 @@ async def handle_reply(message):
     chat_id = message.chat.id
     session = get_session()
     if message.reply_to_message is not None:
-        if session[str(chat_id)]['index_question'] == 0:
-            session[str(chat_id)]['full_name'] = message.text
-        elif session[str(chat_id)]['index_question'] == 1:
-            try:
-                session[str(chat_id)]['old'] = int(message.text)
-            except:
-                session[str(chat_id)]['old'] = message.text
-        elif session[str(chat_id)]['index_question'] == 2:
-            pass
-        elif session[str(chat_id)]['index_question'] == 3:
-            session[str(chat_id)]['name_organization'] = message.text
-        elif session[str(chat_id)]['index_question'] == 4:
-            try:
-                session[str(chat_id)]['year_ending'] = int(message.text)
-            except:
-                session[str(chat_id)]['year_ending'] = message.text
-        session[str(chat_id)]['index_question'] += 1
-        save_session(session)
-        await handle_callback(start_resume)
-        await bot.delete_message(chat_id, message.id)
-
-
-
-
-
-
-
+        await handle_reply_response(chat_id, message)
 
 
 
