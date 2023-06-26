@@ -323,7 +323,7 @@ async def send_welcome(message):
         session[str(chat_id)]['bot_message_id'] = bot_message.id
         save_session(session)
 
-    await bot.delete_message(chat_id, message.id)
+    #await bot.delete_message(chat_id, message.id)
 
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -375,6 +375,22 @@ async def handle_callback(call):
     elif button_call == 'refill':
         session = get_session()
         session[str(chat_id)]['index_question'] = 0
+        session[str(chat_id)]['answers']['work_experience'] = [{
+                    "period_employment": "",
+                    "name_organization": "",
+                    "position_held": "",
+                    "reason_leaving": ""
+                }]
+        session[str(chat_id)]['answers']['level_of_claims'] = [{
+                    "work_period": "",
+                    "minimum_salary": "",
+                    "desired_salary": ""
+                }]
+        session[str(chat_id)]['current_question'] = 0
+        session[str(chat_id)]['index_q_work'] = 0
+        session[str(chat_id)]['value_q_work'] = 0
+        session[str(chat_id)]['index_q_level'] = 0
+        session[str(chat_id)]['value_q_level'] = 0
         save_session(session)
         await handle_callback(user_data.users[str(chat_id)]['start_resume'])
     elif button_call =='send':
