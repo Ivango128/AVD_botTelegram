@@ -336,7 +336,7 @@ async def handle_callback(call):
         button_dict = {
             'На главную 🏠': 'main',
         }
-        await bot.edit_message_text("Тут все о нас", chat_id, session[str(chat_id)]['bot_message_id'], reply_markup=create_keyboard_markup(button_dict))
+        await bot.edit_message_text("Ознакомится можно по ссылке https://www.avid.ru/", chat_id, session[str(chat_id)]['bot_message_id'], reply_markup=create_keyboard_markup(button_dict))
     elif button_call == 'record_in_PD':
         button_dict = {
             'Заполнить резюме': 'start_resume',
