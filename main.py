@@ -5,8 +5,8 @@ import os
 import json
 from dotenv import load_dotenv, find_dotenv
 from datetime import datetime
-
-from telebot.types import User
+import re
+#from telebot.types import User
 
 from sendEmail import send_email
 from sendEmail import create_docx
@@ -65,6 +65,15 @@ questions_list = [['Укажите ваше ФИО', None],
                   ['Личные качества?', None]]
 
 
+q_list_prov = []
+for item in questions_list:
+    q_list_prov.append(item[0])
+
+w = ['Период работы\nПример ввода: 06.21 - 05.23', 'Название организации', 'Занимаемая должность','Причина увольнения']
+c = ['Желаемая профеcсия и должность', 'Минимальная зп', 'Желаемая зп']
+
+q_list_prov.extend(w)
+q_list_prov.extend(c)
 
 user_data = Users()
 
@@ -106,7 +115,7 @@ def new_user_reg(message):
             'data_send_request': '',
             'answers': {
                 "full_name": "",
-                "old": "asd",
+                "old": "",
                 "education": "",
                 "name_organization1": "",
                 "year_ending": "",
@@ -116,13 +125,13 @@ def new_user_reg(message):
                 "renting_house": "",
                 "phone_number": "",
                 "family_status": "",
-                "children": "asd",
+                "children": "",
                 "military_service": "",
                 "experience": "",
                 "shift_work": "",
                 "business_trips": "",
                 "housing_problem": "",
-                "skill_PK": "да",
+                "skill_PK": "",
                 "knowledge_programms": "",
                 "language_level": "",
                 "contraindications": "",
@@ -230,7 +239,7 @@ async def four_question_work(call):
     chat_id = call.from_user.id
     session = get_session()
     work_list = ['Период работы\nПример ввода: 06.21 - 05.23', 'Название организации', 'Занимаемая должность','Причина увольнения']
-    claims_list = ['Желаемая проффесия и должность', 'Минимальная зп', 'Желаемая зп']
+    claims_list = ['Желаемая профеcсия и должность', 'Минимальная зп', 'Желаемая зп']
     markup = types.ForceReply(selective=False)
     await bot.delete_message(chat_id, session[str(chat_id)]['bot_message_id'])
     if session[str(chat_id)]['index_question'] == len(questions_list):
@@ -324,13 +333,16 @@ async def handle_callback(call):
     button_call = call.data
     session = get_session()
     if button_call == 'about_as':
-        await bot.edit_message_text("Вы выбрали кнопку 1.", chat_id, session[str(chat_id)]['bot_message_id'])
+        button_dict = {
+            'На главную 🏠': 'main',
+        }
+        await bot.edit_message_text("Тут все о нас", chat_id, session[str(chat_id)]['bot_message_id'], reply_markup=create_keyboard_markup(button_dict))
     elif button_call == 'record_in_PD':
         button_dict = {
             'Заполнить резюме': 'start_resume',
             'На главную 🏠': 'main',
         }
-        await bot.edit_message_text("Вы можите заполнить резюме, и вам перезвонит сотрудник отдела кадров.", chat_id, session[str(chat_id)]['bot_message_id'], reply_markup=create_keyboard_markup(button_dict))
+        await bot.edit_message_text("Вы можете заполнить резюме, и вам перезвонит сотрудник отдела кадров.", chat_id, session[str(chat_id)]['bot_message_id'], reply_markup=create_keyboard_markup(button_dict))
     elif button_call =='start_resume':
         user_data.users[str(chat_id)]['start_resume'] = call
         session[str(chat_id)]['current_question'] +=1
@@ -373,7 +385,6 @@ async def handle_callback(call):
             await send_email_andfinish_text(call)
             current_time = datetime.now().time()
             session[str(chat_id)]['data_send_request'] = str(current_time)
-            session[str(chat_id)]['count_send_resume'] += 1
             save_session(session)
         else:
             current_time = datetime.now().time()
@@ -382,16 +393,21 @@ async def handle_callback(call):
         time_string = datetime.strptime(time_string, "%H:%M:%S.%f").time()
         time_string = time_string.hour * 60 + time_string.minute
         current_minutes = current_time.hour * 60 + current_time.minute
-        if current_minutes >= time_string + time_limit:
-            current_time = datetime.now().time()
-            session[str(chat_id)]['data_send_request'] = str(current_time)
-            save_session(session)
-            button_dict = {'На главную 🏠': 'main'}
-            await bot.edit_message_text('Резюме отправлено, ожидайте звонка менеджера ☎', chat_id, session[str(chat_id)]['bot_message_id'], reply_markup=create_keyboard_markup(button_dict))
-            await send_email_andfinish_text(call)
+        if session[str(chat_id)]['count_send_resume'] > 0:
+            if current_minutes >= time_string + time_limit:
+                current_time = datetime.now().time()
+                session[str(chat_id)]['data_send_request'] = str(current_time)
+                save_session(session)
+                button_dict = {'На главную 🏠': 'main'}
+                await bot.edit_message_text('Резюме отправлено, ожидайте звонка менеджера ☎', chat_id, session[str(chat_id)]['bot_message_id'], reply_markup=create_keyboard_markup(button_dict))
+                await send_email_andfinish_text(call)
+            else:
+                button_dict = {'Назад 🔙': 'back'}
+                await bot.edit_message_text('Отправлять резюме можно 1 раз в сутки\nВозвращайтесь завтра 😊', chat_id, session[str(chat_id)]['bot_message_id'], reply_markup=create_keyboard_markup(button_dict))
+
         else:
-            button_dict = {'Назад 🔙': 'back'}
-            await bot.edit_message_text('Отправлять резюме можно 1 раз в сутки\nВозвращайтесь завтра 😊', chat_id, session[str(chat_id)]['bot_message_id'], reply_markup=create_keyboard_markup(button_dict))
+            session[str(chat_id)]['count_send_resume'] += 1
+            save_session(session)
     elif button_call == 'back':
         await handle_callback(user_data.users[str(chat_id)]['start_resume'])
     else:
@@ -450,21 +466,37 @@ async def handle_reply_response_three(chat_id, message):
 async def handle_reply(message):
     chat_id = message.chat.id
     session = get_session()
-    if message.reply_to_message is not None:
-        if session[str(chat_id)]['index_question'] == len(questions_list):
-            await handle_reply_response_four(chat_id, message)
-        elif session[str(chat_id)]['index_question'] == len(questions_list)+1:
-            await handle_reply_response_three(chat_id, message)
+    emoji_pattern = re.compile(r'[^\w\s,]')
+    # Проверьте, есть ли смайлик в сообщении
+    has_emoji = bool(emoji_pattern.search(message.text))
+    if not has_emoji:
+        if message.reply_to_message is not None:
+            if session[str(chat_id)]['bot_message_id'] == message.reply_to_message.message_id:
+                if message.reply_to_message.text in q_list_prov:
+                    if session[str(chat_id)]['index_question'] == len(questions_list):
+                        await handle_reply_response_four(chat_id, message)
+                    elif session[str(chat_id)]['index_question'] == len(questions_list)+1:
+                        await handle_reply_response_three(chat_id, message)
+                    else:
+                        await handle_reply_response(chat_id, message)
+                else:
+                    print('Error')
+                    await bot.delete_message(chat_id, message.id)
+
+            else:
+                await bot.delete_message(chat_id, message.reply_to_message.id)
+                await bot.delete_message(chat_id, message.id)
+
         else:
-            await handle_reply_response(chat_id, message)
+            if session[str(chat_id)]['current_question'] > 0:
+                await bot.delete_message(chat_id, message.id)
+                await handle_callback(user_data.users[str(chat_id)]['start_resume'])
+            else:
+                await send_main(message)
+
     else:
-        #await bot.delete_message(chat_id, message.id)
-        if session[str(chat_id)]['current_question'] > 0:
-            await bot.delete_message(chat_id, message.id)
-            await handle_callback(user_data.users[str(chat_id)]['start_resume'])
-        else:
-            #await handle_reply_response(chat_id, message)
-            await send_main(message)
+        await bot.delete_message(chat_id, message.id)
+        await handle_callback(user_data.users[str(chat_id)]['start_resume'])
 
 
 
