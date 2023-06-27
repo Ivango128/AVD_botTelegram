@@ -1,3 +1,4 @@
+import emoji as emoji
 from telebot import types
 from telebot.async_telebot import AsyncTeleBot
 import asyncio
@@ -323,7 +324,6 @@ async def send_welcome(message):
         session[str(chat_id)]['bot_message_id'] = bot_message.id
         save_session(session)
 
-    #await bot.delete_message(chat_id, message.id)
 
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -482,10 +482,10 @@ async def handle_reply_response_three(chat_id, message):
 async def handle_reply(message):
     chat_id = message.chat.id
     session = get_session()
-    emoji_pattern = re.compile(r'[^\w\s,]')
+    #emoji_pattern = re.compile(r'[^\w\s,]')
     # Проверьте, есть ли смайлик в сообщении
-    has_emoji = bool(emoji_pattern.search(message.text))
-    if not has_emoji:
+    has_emoji = emoji.emoji_count(message.text)
+    if  has_emoji <= 0:
         if message.reply_to_message is not None:
             if session[str(chat_id)]['bot_message_id'] == message.reply_to_message.message_id:
                 if message.reply_to_message.text in q_list_prov:
@@ -511,6 +511,7 @@ async def handle_reply(message):
                 await send_main(message)
 
     else:
+        print('Error1')
         await bot.delete_message(chat_id, message.id)
         await handle_callback(user_data.users[str(chat_id)]['start_resume'])
 
