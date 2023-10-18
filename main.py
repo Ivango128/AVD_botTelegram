@@ -271,6 +271,8 @@ async def finish_resume(call):
     session[str(chat_id)]['bot_message_id'] = bot_message.id
     save_session(session)
 
+
+
 async def send_email_and_finish_text(call):
     chat_id = call.from_user.id
     session = get_session()
