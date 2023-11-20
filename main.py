@@ -103,7 +103,7 @@ def new_user_reg(message):
         print("Пользователь не зарегистрирован")
         user_data.add_user(str(chat_id))
         session[chat_id] = {
-            'name': message.from_user.first_name,
+            'name': 'Тест', #message.from_user.first_name
             'bot_message_id': 0,
             'index_question': 0,
             'current_question': 0,
@@ -111,7 +111,7 @@ def new_user_reg(message):
             'value_q_work': 0,
             'index_q_level': 0,
             'value_q_level': 0,
-            'count_send_resume':0,
+            'count_send_resume': 0,
             'data_send_resume': '',
             'data_send_request': '',
             'answers': {
@@ -480,7 +480,8 @@ async def handle_reply_response_three(chat_id, message):
 
 @bot.message_handler(func=lambda message: True)
 async def handle_reply(message):
-    chat_id = message.chat.id
+    print(message)
+    chat_id = message.chat.id #проверять все языки кроме англ и рус
     session = get_session()
     #emoji_pattern = re.compile(r'[^\w\s,]')
     # Проверьте, есть ли смайлик в сообщении
